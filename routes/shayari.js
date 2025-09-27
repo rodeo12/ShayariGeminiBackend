@@ -9,7 +9,7 @@ const API_KEY = process.env.API_KEY;
 //API endpoint to generate Shayari
 router.post('/', async (req, res) => {
     try {
-      
+ 
         // Extract keyword from request body
         if (!req.body.keyword) {
             return res.status(400).json({ message: 'Missing keyword in request body' });
@@ -27,6 +27,7 @@ router.post('/', async (req, res) => {
         const shayari = await generateShayari(keyword, genAI);
         res.json({ shayari });
     } catch (error) {
+      // console.log("HI")
         console.error('Error:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
@@ -37,7 +38,7 @@ router.post('/', async (req, res) => {
   try {
 
       // Get the Gemini Pro model
-      const model = genAI.getGenerativeModel({ model: "gemini-pro"});
+      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash"});
 
       // Prompt: Include keyword and specify creative text generation
       const prompt = `Tell me a nice shayari on ${keyword} in less than 50 words in hindi`;
@@ -48,7 +49,7 @@ router.post('/', async (req, res) => {
 
       // Extract generated Shayari (handle potential errors)
       const shayari = response.text() || 'Could not generate Shayari at this time.';
-// console.log(shayari)
+    //  console.log(shayari)
       return shayari;
   } catch (error) {
     if ( error.message.includes('SAFETY')) {

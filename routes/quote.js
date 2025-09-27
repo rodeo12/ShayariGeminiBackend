@@ -1,63 +1,95 @@
 const express = require('express');
 const router = express.Router();
 require('dotenv').config();
-const { GoogleGenerativeAI } = require("@google/generative-ai"); 
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const API_KEY = process.env.API_KEY;
+const genAI = new GoogleGenerativeAI(API_KEY);
 
-
-//API endpoint to generate Shayari
 router.post('/', async (req, res) => {
-    try {
-      
-        // Extract keyword from request body
-        if (!req.body.keyword) {
-            return res.status(400).json({ message: 'Missing keyword in request body' });
-            
-          }
-          const genAI = new GoogleGenerativeAI(API_KEY);
-          const keyword = req.body.keyword;
+  try {
+    const { keyword } = req.body;
 
-        // Check if API key is set in environment variable
-        if (!API_KEY) {
-            return res.status(401).json({ message: 'Missing GEMINI_API_KEY environment variable' });
-        }
-
-        // Generate Shayari and send response
-        const quote = await generateShayari(keyword, genAI);
-        res.json({ quote });
-    } catch (error) {
-        console.error('Error:', error);
-        res.status(500).json({ message: 'Internal server error' });
+    if (!API_KEY) {
+      console.error('Missing GEMINI_API_KEY environment variable');
+      return res.status(401).json({ message: 'Missing GEMINI_API_KEY environment variable' });
     }
+
+    if (!keyword) {
+      console.warn('Missing keyword in request body');
+      return res.status(400).json({ message: 'Missing keyword in request body' });
+    }
+
+    const quote = await generateQuote(keyword);
+
+    res.json({ quote });
+
+  } catch (error) {
+    console.error('Error handling / POST request:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
 });
 
- // Function to generate Shayari
- async function generateShayari(keyword, genAI) {
+// async function generateQuote(keyword) {
+//   try {
+//     const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+
+//     const prompt = `Tell me a nice quote on "${keyword}" in less than 50 words.`;
+
+//     // new SDK format: directly pass input
+//     const result = await model.generateContent(prompt);
+
+//     const text = result.response.text();
+
+//     return text || 'Could not generate quote at this time.';
+
+//   } catch (error) {
+//     if (error.message.includes('SAFETY')) {
+//       console.warn('Quote generation failed due to safety concerns:', error);
+//       return 'Quote generation failed due to safety concerns. Please try a different keyword.';
+//     } else {
+//       console.error('Error generating quote:', error);
+//       return 'Error generating quote.';
+//     }
+//   }
+// }
+
+async function generateQuote(keyword) {
   try {
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-2.0-flash',
+      generationConfig: {
+        temperature: 0.7,   // balanced creativity
+        topK: 40,           // diverse vocabulary
+        topP: 0.9,          // natural variation
+        maxOutputTokens: 60 // short, crisp quotes
+      }
+    });
 
-      // Get the Gemini Pro model
-      const model = genAI.getGenerativeModel({ model: "gemini-pro"});
+    // Rotate prompts for freshness
+    const promptTemplates = [
+      `Give me a fresh and original quote on "${keyword}" in less than 50 words.`,
+      `Write a unique quote about "${keyword}" in under 50 words. Keep it inspiring and meaningful.`,
+      `Create a short, creative quote related to "${keyword}", strictly below 50 words, and avoid clichés.`
+    ];
+    const prompt =
+      promptTemplates[Math.floor(Math.random() * promptTemplates.length)];
 
-      // Prompt: Include keyword and specify creative text generation
-      const prompt = `Tell me a nice quote on ${keyword} in less than 50 words .`;
+    const result = await model.generateContent(prompt);
+    const text = result.response.text();
 
-      // Generate content
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
+    return text || 'Could not generate quote at this time.';
 
-      // Extract generated Shayari (handle potential errors)
-      const quote = response.text() || 'Could not generate quote at this time.';
-// console.log(shayari)
-      return quote;
   } catch (error) {
-    if ( error.message.includes('SAFETY')) {
-      console.log('quote generation failed due to safety concerns,try with a different keyword:', error);
-      return 'quote generation failed due to safety concern. Please try a different keyword.';
-    }else{
+    if (error.message.includes('SAFETY')) {
+      console.warn('Quote generation failed due to safety concerns:', error);
+      return 'Quote generation failed due to safety concerns. Please try a different keyword.';
+    } else {
       console.error('Error generating quote:', error);
-    }          
+      return 'Error generating quote.';
+    }
   }
 }
 
-module.exports= router ;
+
+module.exports = router;
